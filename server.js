@@ -15,7 +15,8 @@ const client = new MongoClient(uri, {
 const wss = new WebSocket.Server({ port: 8080 });
 
 const rooms = {
-  public:new Map()
+  public:new Map(),
+  admin:new Map()
 }
 
 
@@ -32,6 +33,7 @@ async function run(){
       let username = "unknown";
       let pseudo = username
       let users = rooms.public
+      let admins = rooms.admin
       let room = "Public"
       let Compte
       // On message reception
@@ -39,7 +41,7 @@ async function run(){
         const data = JSON.parse(message);
         if (data.action === "chat"){
           if (users.get(username) === ws && typeof data.message == "string" && data.message.length < 1000 && Compte && !Compte.isMute && data.message.trim() !== ''){
-            const box = await command(users, username, Compte.isOp, data.message, Comptes, db)
+            const box = await command(users, username, Compte.isOp, data.message, Comptes, db, admins)
             if (box[2]){
               if (!box[0]){
                 info("Command failed to execute: " + box[1], false, ws, users)
@@ -114,6 +116,9 @@ async function run(){
               Compte = await Comptes.findOne({username:username});
             }
             users.set(username, ws);
+            if (Compte.isOp){
+              admins.set(username, ws)
+            }
             let documents = await Public.find().toArray();
             let object = {action:"load", "content":documents};
             ws.send(JSON.stringify(object))
@@ -165,11 +170,14 @@ async function run(){
         for (const [username, socket] of users.entries()) {
           if (socket === ws) {
               users.delete(username);
+              if (Compte.isOp){
+                admins.delete(username)
+              }
           }
         }
         console.log("Connection lost with " + username + "!")
         if (username !== "unknown"){
-          if (Compte.isVanished !== true){
+          if (!Compte.isVanished){
             info(username + " left!", true, ws, users)
           }
         }
@@ -234,7 +242,7 @@ function getCurrentTime() {
 }
 
 
-async function command(users, username, isOp, message, Comptes, db){
+async function command(users, username, isOp, message, Comptes, db, admins){
   const slices = message.split(" ");
   const cmd = slices[0].slice(1);
   let targetName = slices[1];
@@ -290,7 +298,10 @@ async function command(users, username, isOp, message, Comptes, db){
       if (isOp){
         try{
           await Comptes.updateOne({username:target},{$set:{isOp:true}});
-          info("You are now op!", false, target, users)
+          if (targetName in users){
+            info("You are now op!", false, target, users)
+            admins.set(username, target)
+          }
           info("The user is now an Admin", false, user, users)
           return [true, ""]
         }catch(err){
@@ -306,6 +317,7 @@ async function command(users, username, isOp, message, Comptes, db){
           await Comptes.updateOne({username:target},{$set:{isOp:false}});
           if (targetName in users){
             info("You aren't op anymore!", false, target, users)
+            admins.delete(username)
           }
           info("The user isn't an Admin anymore", false, user, users)
           return [true, ""]
@@ -443,6 +455,19 @@ async function command(users, username, isOp, message, Comptes, db){
         }else{
           return [false, "You need a message"]
         }
+      }else{
+        return [false, "You need Op for this"]
+      }
+    },
+    "admin":function(){
+      if (isOp){
+        sendToAll(admins, {
+          action:"chat",
+          username:"{"+username+"}",
+          message:targetName + supplementaries,
+          time:getCurrentTime()
+        })
+        return [true, ""]
       }else{
         return [false, "You need Op for this"]
       }
