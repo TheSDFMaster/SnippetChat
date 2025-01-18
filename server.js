@@ -494,7 +494,7 @@ async function command(users, username, isOp, message, Comptes, ChatData, admins
       return [false, "Unknown command", cmd, storage]
     }
   }else{
-    return [true, "", false];
+    return [true, "", false]
   }
 }
 
