@@ -106,10 +106,10 @@ async function run(){
               await Comptes.insertOne({
                 username:username,
                 password: await hashPassword(data.password),
-                isBanned:false,
                 isOp:false,
+                isVanished:false,
                 isMute:false,
-                isVanished:false
+                isBanned:false,
               })
               console.log(`${data.username} created an account!`);
               Compte = await Comptes.findOne({username:username});
@@ -252,9 +252,13 @@ async function command(users, username, isOp, message, Comptes, ChatData, admins
     "kick":function(){
       if (isOp){
         try{
-          info(supplementaries ? "You have been kicked out: " + supplementaries : "You have been kicked out because of God's will.", false, target, users)
-          target.close();
-          return [true, ""]
+          if (users.has(targetName)){
+            info(supplementaries ? "You have been kicked out: " + supplementaries : "You have been kicked out because of God's will.", false, target, users)
+            target.close();
+            return [true, "The target is currently offline"]
+          }else{
+            return [false, ]
+          }
         }catch(err){
           return [false, err]
         }
@@ -265,12 +269,12 @@ async function command(users, username, isOp, message, Comptes, ChatData, admins
     "ban":async function(){
       if (isOp){
         try{
-          await Comptes.updateOne({username:target}, {$set: {isBanned:true}})
+          await Comptes.updateOne({username:targetName}, {$set: {isBanned:true}})
           if (targetName in users){
             info(supplementaries ? "You have been banned: " + supplementaries:"You have been banned because of God's will.", false, target, users)
             target.close();
-            info("The user is now banned", false, user, users)
           }
+          info("The target is now banned", false, user, users)
           return [true, ""]
         }catch(err){
           return [false, err]
@@ -282,8 +286,8 @@ async function command(users, username, isOp, message, Comptes, ChatData, admins
     "unban":async function(){
       if (isOp){
         try{
-          await Comptes.updateOne({username:target},{$set:{isBanned:false}});
-          info("The user isn't banned anymore", false, user, users)
+          await Comptes.updateOne({username:targetName},{$set:{isBanned:false}});
+          info("The target isn't banned anymore", false, user, users)
           return [true, ""]
         }catch(err){
           return [false, err]
@@ -295,12 +299,12 @@ async function command(users, username, isOp, message, Comptes, ChatData, admins
     "op":async function(){
       if (isOp){
         try{
-          await Comptes.updateOne({username:target},{$set:{isOp:true}});
+          await Comptes.updateOne({username:targetName},{$set:{isOp:true}});
           if (targetName in users){
             info("You are now op!", false, target, users)
-            admins.set(username, target)
+            admins.set(targetName, target)
           }
-          info("The user is now an Admin", false, user, users)
+          info("The target can now use Admin's commands", false, user, users)
           return [true, ""]
         }catch(err){
           return [false, err]
@@ -312,12 +316,12 @@ async function command(users, username, isOp, message, Comptes, ChatData, admins
     "deop":async function(){
       if (isOp){
         try{
-          await Comptes.updateOne({username:target},{$set:{isOp:false}});
+          await Comptes.updateOne({username:targetName},{$set:{isOp:false}});
           if (targetName in users){
             info("You aren't op anymore!", false, target, users)
-            admins.delete(username)
+            admins.delete(targetName)
           }
-          info("The user isn't an Admin anymore", false, user, users)
+          info("The target no longer can use Admin's commands", false, user, users)
           return [true, ""]
         }catch(err){
           return [false, err]
@@ -343,7 +347,7 @@ async function command(users, username, isOp, message, Comptes, ChatData, admins
           }))
           return [true, ""]
         }else{
-          return [false, "This user is currently not online"]
+          return [false, "The target is currently not online"]
         }
       }
       catch(err){
@@ -357,7 +361,7 @@ async function command(users, username, isOp, message, Comptes, ChatData, admins
           if (targetName in users){
             info(supplementaries ? "You have been muted: " + supplementaries:"You have been muted because of God's will.", false, target, users) 
           }
-          info("The user is now muted", false, user, users)
+          info("The target is now muted", false, user, users)
           return [true, ""]
         }catch(err){
           return [false, err]
@@ -373,7 +377,7 @@ async function command(users, username, isOp, message, Comptes, ChatData, admins
           if (targetName in users){
             info(supplementaries ? "You have been unmuted: " + supplementaries:"You have been unmuted because of God's will.", false, target, users) 
           }
-          info("The user isn't muted anymore", false, user, users)
+          info("The target isn't muted anymore", false, user, users)
           return [true, ""]
         }catch(err){
           return [false, err]
@@ -400,12 +404,12 @@ async function command(users, username, isOp, message, Comptes, ChatData, admins
             const room = await ChatData.collection("Rooms").findOne({name:targetName})
             if (room){
               if (verifyPassword(supplementaries, room.password)){
-                storage = targetName
               }else{
                 return [false, "Incorrect password!"]
               }
             }else{
               ChatData.collection("Rooms").insertOne({
+                creator:username,
                 name:targetName,
                 password:await hashPassword(supplementaries)
               })
@@ -413,7 +417,7 @@ async function command(users, username, isOp, message, Comptes, ChatData, admins
             storage = targetName
             return [true, ""]
           }else{
-            return [false, "You need to enter a room name and its password! To create a room enter a new name and a password."]
+            return [false, "You need to enter a room name and its password! To create a room enter a new name and a password"]
           }
         }
       }catch(err){
@@ -425,7 +429,6 @@ async function command(users, username, isOp, message, Comptes, ChatData, admins
         try{
           if (!targetName){
             targetName = username
-            console.log(targetName)
           }
           const Compte = await Comptes.findOne({username:targetName})
           if (Compte){
@@ -434,14 +437,14 @@ async function command(users, username, isOp, message, Comptes, ChatData, admins
               if (users.has(targetName)){
                 info(`${targetName} joined!`, true, target, users)
               }else{
-                info("The user isn't vanished anymore", false, user, users)
+                info("The target isn't vanished anymore", false, user, users)
               }
             }else{
               Comptes.updateOne({username:targetName},{$set:{isVanished:true}})
               if (users.has(targetName)){
                 info(targetName + " left!", true, target, users)
               }else{
-                info("The user is now vanished", false, user, users)
+                info("The target is now vanished", false, user, users)
               }
             }
             return [true, ""]
@@ -457,12 +460,11 @@ async function command(users, username, isOp, message, Comptes, ChatData, admins
     },
     "info":async function(){
       if (isOp){
-        const Compte = await Comptes.findOne({username:username})
         if (targetName){
           info(targetName + supplementaries, true, user, users)
           return [true, ""]
         }else{
-          return [false, "You need a message"]
+          return [false, "You need an announcement"]
         }
       }else{
         return [false, "You need Op for this"]
