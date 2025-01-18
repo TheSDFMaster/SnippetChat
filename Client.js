@@ -116,8 +116,11 @@ function createConnection() {
             paragraph.innerHTML = message;
             messageContainer.appendChild(paragraph);
             messageContainer.scrollTop = messageContainer.scrollHeight;*/
+            const isScrolled = messageContainer.scrollHeight - messageContainer.scrollTop <= messageContainer.clientHeight + 1
             addMessage(data.username, data.time, data.message)
-            messageContainer.scrollTop = messageContainer.scrollHeight;
+            if (isScrolled) {
+                messageContainer.scrollTop = messageContainer.scrollHeight;
+            }
         }
     };
 

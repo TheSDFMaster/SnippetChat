@@ -107,9 +107,11 @@ async function run(){
                 password: await hashPassword(data.password),
                 isBanned:false,
                 isOp:false,
-                isMute:false
+                isMute:false,
+                isVanished:false
               })
               console.log(`${data.username} created an account!`);
+              Compte = await Comptes.findOne({username:username});
             }
             users.set(username, ws);
             let documents = await Public.find().toArray();
@@ -193,7 +195,6 @@ function isGood(str) {
 async function hashPassword(password) {
   const saltRounds = 10;
   const hash = await bcrypt.hash(password, saltRounds);
-  console.log("New password created!")
   return hash;
 }
 
