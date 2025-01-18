@@ -45,9 +45,7 @@ async function run(){
                 info("Command failed to execute: " + box[1], false, ws, users)
                 console.log(username, box[1])
               }else{
-                if (box[2] == "nick"){
-                  pseudo = box[3]
-                }else if (box[2] == "private"){
+                if (box[2] == "private"){
                   room = box[3]
                   info(username + " left!", true, ws, users)
                   for (const [username, socket] of users.entries()) {
@@ -366,23 +364,6 @@ async function command(users, username, isOp, message, Comptes, db){
           }
           info("The user isn't muted anymore", false, user, users)
           return [true, ""]
-        }catch(err){
-          return [false, err]
-        }
-      }else{
-        return [false, "You need Op for this"]
-      }
-    },
-    "nick":function(){
-      if (isOp){
-        try{
-          if (isGood(targetName)){
-            storage = targetName
-            info("Your username as been change for " + targetName, false, user, users)
-            return [true, ""]
-          }else{
-            return [false, "Your username must contains 3-15 characters. They must be only letters and numbers and can't start with a digit."]
-          }
         }catch(err){
           return [false, err]
         }
