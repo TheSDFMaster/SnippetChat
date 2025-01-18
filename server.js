@@ -24,9 +24,10 @@ const rooms = {
 async function run(){
   try{
     await client.connect();
-    const db = client.db("SnippetData");
-    const Public = db.collection("Public");
-    const Comptes = db.collection("Comptes")
+    const ChatData = client.db("ChatData");
+    const ChatRooms = client.db("ChatRooms");
+    const Public = ChatRooms.collection("Public");
+    const Comptes = ChatData.collection("Comptes")
     wss.on('connection', async (ws) => {
       console.log("New connection!")
       let username = "unknown";
@@ -40,7 +41,7 @@ async function run(){
         const data = JSON.parse(message);
         if (data.action === "chat"){
           if (users.get(username) === ws && typeof data.message == "string" && data.message.length < 1000 && Compte && !Compte.isMute && data.message.trim() !== ''){
-            const box = await command(users, username, Compte.isOp, data.message, Comptes, db, admins)
+            const box = await command(users, username, Compte.isOp, data.message, Comptes, ChatData, admins)
             if (box[2]){
               if (!box[0]){
                 info("Command failed to execute: " + box[1], false, ws, users)
@@ -56,7 +57,7 @@ async function run(){
                   if (box[3] in rooms){
                     users = rooms[room]
                     users.set(username, ws)
-                    let documents = await db.collection(room).find().toArray();
+                    let documents = await ChatRooms.collection(room).find().toArray();
                     let object = {action:"load", "content":documents};
                     ws.send(JSON.stringify(object))
                     info(`${username} joined!`, true, ws, users)
@@ -64,8 +65,8 @@ async function run(){
                     rooms[room] = new Map()
                     users = rooms[room]
                     users.set(username, ws)
-                    await db.createCollection(room)
-                    let documents = await db.collection(room).find().toArray();
+                    await ChatRooms.createCollection(room)
+                    let documents = await ChatRooms.collection(room).find().toArray();
                     let object = {action:"load", "content":documents};
                     ws.send(JSON.stringify(object))
                     info(`${username} joined!`, true, ws, users)
@@ -76,7 +77,7 @@ async function run(){
               // Log Message;
               console.log(`${username}: ${data.message}`);
               // Insert in DataBase
-              await db.collection(room).insertOne({
+              await ChatRooms.collection(room).insertOne({
                 action:"chat",
                 username:pseudo,
                 message:data.message,
@@ -143,7 +144,7 @@ async function run(){
         else if(data.action == "file"){
           if (users.get(username) === ws){
             console.log(username + " send a file");
-            await db.collection(room).insertOne(data)
+            await ChatRooms.collection(room).insertOne(data)
             sendToAll(users, {
               action: "file",
               username: username,
@@ -239,7 +240,7 @@ function getCurrentTime() {
 }
 
 
-async function command(users, username, isOp, message, Comptes, db, admins){
+async function command(users, username, isOp, message, Comptes, ChatData, admins){
   const slices = message.split(" ");
   const cmd = slices[0].slice(1);
   let targetName = slices[1];
@@ -383,26 +384,37 @@ async function command(users, username, isOp, message, Comptes, db, admins){
     },
     "private":async function(){
       try{
-        if (targetName && supplementaries){
-          const room = await db.collection("Rooms").findOne({name:targetName})
-          console.log(room)
-          if (room){
-            if (verifyPassword(supplementaries, room.password)){
-              storage = targetName
-              return [true, ""]
-            }else{
-              return [false, "Incorrect password!"]
-            }
-          }else{
-            db.collection("Rooms").insertOne({
-              name:targetName,
-              password:await hashPassword(supplementaries)
-            })
-            storage = targetName
+        if (targetName == "Public"){
+          storage = "Public"
+          return [true, ""]
+        }else if (targetName == "Admin"){
+          if (isOp){
+            storage = "Admin"
             return [true, ""]
+          }else{
+            return [false, "You need to be Op for this"]
           }
         }else{
-          return [false, "You need to enter a room name and its password! To create a room enter a new name and a password."]
+          if (targetName && supplementaries){
+            targetName = targetName.charAt(0).toUpperCase() + targetName.slice(1).toLowerCase()
+            const room = await ChatData.collection("Rooms").findOne({name:targetName})
+            if (room){
+              if (verifyPassword(supplementaries, room.password)){
+                storage = targetName
+              }else{
+                return [false, "Incorrect password!"]
+              }
+            }else{
+              ChatData.collection("Rooms").insertOne({
+                name:targetName,
+                password:await hashPassword(supplementaries)
+              })
+            }
+            storage = targetName
+            return [true, ""]
+          }else{
+            return [false, "You need to enter a room name and its password! To create a room enter a new name and a password."]
+          }
         }
       }catch(err){
         return [false, err]
