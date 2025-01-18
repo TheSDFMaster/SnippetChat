@@ -432,6 +432,19 @@ async function command(users, username, isOp, message, Comptes, db){
       }else{
         return [false, "You need Op for this"]
       }
+    },
+    "info":async function(){
+      if (isOp){
+        const Compte = await Comptes.findOne({username:username})
+        if (targetName){
+          info(targetName + supplementaries, true, user, users)
+          return [true, ""]
+        }else{
+          return [false, "You need a message"]
+        }
+      }else{
+        return [false, "You need Op for this"]
+      }
     }
   }
   if (message.startsWith("/")){
