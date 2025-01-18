@@ -24,7 +24,6 @@ const rooms = {
 async function run(){
   try{
     await client.connect();
-    console.log("Successfully connected to MongoDB!");
     const db = client.db("SnippetData");
     const Public = db.collection("Public");
     const Comptes = db.collection("Comptes")
@@ -45,7 +44,6 @@ async function run(){
             if (box[2]){
               if (!box[0]){
                 info("Command failed to execute: " + box[1], false, ws, users)
-                console.log(username, box[1])
               }else{
                 if (box[2] == "private"){
                   room = box[3]
@@ -123,7 +121,6 @@ async function run(){
             let object = {action:"load", "content":documents};
             ws.send(JSON.stringify(object))
             console.log(`${data.username} joined!`);
-            console.log("sent data")
             if (Compte.isVanished !== true){
               info(`${data.username} joined!`, true, ws, users)
             }
@@ -330,17 +327,17 @@ async function command(users, username, isOp, message, Comptes, db, admins){
     },
     "msg":function(){
       try{
-        if (targetName in users){
+        if (users.has(targetName)){
           target.send(JSON.stringify({
             action:"chat",
             message: supplementaries,
-            username:"["+user+"]",
+            username:"["+username+"]",
             time: getCurrentTime()
           }));
           user.send(JSON.stringify({
             action:"chat",
             message: supplementaries,
-            username:"["+user+"]",
+            username:"["+username+"]",
             time: getCurrentTime()
           }))
           return [true, ""]
